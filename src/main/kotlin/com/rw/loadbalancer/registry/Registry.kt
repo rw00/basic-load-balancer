@@ -5,7 +5,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 const val MAX_ALLOWED_PROVIDERS: Int = 10
 
-class Registry(private val registrationCallback: RegistrationCallback) {
+class Registry(
+    private val registrationCallback: RegistrationCallback,
+    private val unregistrationCallback: UnregistrationCallback
+) {
     private val providersMap: ConcurrentHashMap<String, Provider> = ConcurrentHashMap()
 
     fun registerProvider(provider: Provider) {
@@ -16,6 +19,12 @@ class Registry(private val registrationCallback: RegistrationCallback) {
             throw RegistrationException(
                 "Failed to register provider ${provider.getId()}. Already at full capacity: $MAX_ALLOWED_PROVIDERS"
             )
+        }
+    }
+
+    fun deactivateProvider(provider: Provider) {
+        if (provider.deactivate()) {
+            unregistrationCallback.unregistered(provider)
         }
     }
 }

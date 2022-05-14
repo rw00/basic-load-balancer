@@ -13,4 +13,8 @@ class RandomizedStrategy : RegistryAwareStrategy {
     override fun next(): Provider {
         return randomizedMap.random
     }
+
+    override fun unregistered(provider: Provider) {
+        randomizedMap.remove(provider)
+    }
 }

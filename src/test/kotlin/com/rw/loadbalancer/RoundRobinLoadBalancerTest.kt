@@ -29,6 +29,6 @@ class RoundRobinLoadBalancerTest {
     }
 
     private fun createRoundRobinLoadBalancer(): LoadBalancer {
-        return LoadBalancerBuilder().registryAwareStrategy(RoundRobinStrategy()).build()
+        return LoadBalancer.Builder().registryAwareStrategy(RoundRobinStrategy()).build()
     }
 }

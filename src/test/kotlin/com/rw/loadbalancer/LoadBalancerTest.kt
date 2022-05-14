@@ -47,6 +47,6 @@ class LoadBalancerTest {
     }
 
     private fun createRandomizedLoadBalancer(): LoadBalancer {
-        return LoadBalancerBuilder().registryAwareStrategy(RandomizedStrategy()).build()
+        return LoadBalancer.Builder().registryAwareStrategy(RandomizedStrategy()).build()
     }
 }

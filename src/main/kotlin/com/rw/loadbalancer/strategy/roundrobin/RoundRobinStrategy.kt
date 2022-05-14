@@ -17,4 +17,9 @@ class RoundRobinStrategy : RegistryAwareStrategy {
         index.compareAndSet(list.size - 1, -1)
         return list[index.incrementAndGet()]
     }
+
+    override fun unregistered(provider: Provider) {
+        list.remove(provider)
+        index.set(-1)
+    }
 }
