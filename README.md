@@ -5,9 +5,17 @@ A load balancer is a component that, once invoked, distributes incoming requests
 and returns the result obtained from one of these providers to the caller. \
 For simplicity, a provider only returns its ID. 
 
-## NFRs:
+## Non-Functional Requirements
 * Concurrency-safe
 * Blazing fast lookup and routing
+
+## Implementation Details
+I'm using Kotlin with JUnit 5. This software product is built with Maven and is runnable through the CLI. \
+Currently, the LoadBalancer is the entrypoint.
+
+## TO DO
+* Move registering providers to a component called Registrar
+that shares with the LoadBalancer a Registry of Providers.
 
 ## Steps
 1. Create a Provider definition.
