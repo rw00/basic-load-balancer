@@ -1,20 +1,20 @@
 package com.rw.loadbalancer.strategy.random
 
 import com.rw.loadbalancer.RegistryAwareStrategy
-import com.rw.loadbalancer.provider.Provider
+import com.rw.loadbalancer.provider.ProviderDelegate
 
 class RandomizedStrategy : RegistryAwareStrategy {
-    private val randomizedMap: RandomizedMap<Provider> = RandomizedMap()
+    private val randomizedMap: RandomizedMap<ProviderDelegate> = RandomizedMap()
 
-    override fun registered(provider: Provider) {
-        randomizedMap.insert(provider)
-    }
-
-    override fun next(): Provider {
+    override fun next(): ProviderDelegate {
         return randomizedMap.random
     }
 
-    override fun unregistered(provider: Provider) {
+    override fun added(provider: ProviderDelegate) {
+        randomizedMap.insert(provider)
+    }
+
+    override fun removed(provider: ProviderDelegate) {
         randomizedMap.remove(provider)
     }
 }

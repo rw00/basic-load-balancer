@@ -21,6 +21,12 @@ Currently, the LoadBalancer is the entrypoint.
 * Move registering providers to a component called Registrar
   that shares with the LoadBalancer a Registry of Providers.
 
+## Vague Requirements
+
+Excluding a provider: does it mean unregistered or simply not accepting calls? \
+Since there is a limit to the number of registered providers, then this requirement is unclear. \
+I'm assuming that an excluded provider is still registered but inactive.
+
 ## Steps
 
 1. Create a Provider definition.

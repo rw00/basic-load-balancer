@@ -3,17 +3,17 @@ package com.rw.loadbalancer.provider
 interface Provider {
     fun getId(): String
 
-    fun isActive(): Boolean
+    /**
+     * A simplified operation on the node.
+     *
+     * Currently, it only returns the ID
+     */
+    fun get(): String
 
     /**
-     * Activates the provider to receive requests.
-     * Returns true if the switch was flicked. If the active state didn't change, returns false.
+     * Supposedly a remote call. Analogous to pinging.
+     *
+     * Returns true if in good health.
      */
-    fun activate(): Boolean
-
-    /**
-     * Deactivates the provider to no longer accept requests.
-     * Returns true if the switch was flicked. If the active state didn't change, returns false.
-     */
-    fun deactivate(): Boolean
+    fun check(): Boolean
 }

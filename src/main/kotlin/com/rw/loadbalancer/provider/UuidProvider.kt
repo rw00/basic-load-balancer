@@ -1,23 +1,17 @@
 package com.rw.loadbalancer.provider
 
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
 
-class UuidProvider : Provider {
+open class UuidProvider : Provider {
     private val uuid: String = UUID.randomUUID().toString()
-    private val active: AtomicBoolean = AtomicBoolean(true) // TO DO : starts inactive?
 
     override fun getId(): String = uuid
 
-    override fun isActive(): Boolean {
-        return active.get()
+    override fun get(): String {
+        return uuid
     }
 
-    override fun activate(): Boolean {
-        return active.compareAndSet(false, true)
-    }
-
-    override fun deactivate(): Boolean {
-        return active.compareAndSet(true, false)
+    override fun check(): Boolean { // this is supposedly a remote call; it just needs to complete
+        return true
     }
 }

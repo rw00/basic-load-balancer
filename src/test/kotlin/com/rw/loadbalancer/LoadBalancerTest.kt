@@ -5,11 +5,9 @@ import com.rw.loadbalancer.registry.MAX_ALLOWED_PROVIDERS
 import com.rw.loadbalancer.registry.RegistrationException
 import com.rw.loadbalancer.strategy.random.RandomizedStrategy
 import org.assertj.core.api.Assertions.assertThat
-import org.awaitility.Awaitility.await
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import java.util.concurrent.TimeUnit.MILLISECONDS
-import java.util.concurrent.TimeUnit.SECONDS
+import java.time.Duration
 
 class LoadBalancerTest {
     @Test
@@ -18,7 +16,8 @@ class LoadBalancerTest {
         repeat(MAX_ALLOWED_PROVIDERS) {
             loadBalancer.registerProvider(UuidProvider())
         }
-        assertThrows<RegistrationException> { loadBalancer.registerProvider(UuidProvider()) }
+        assertThatThrownBy { loadBalancer.registerProvider(UuidProvider()) }
+            .isInstanceOf(RegistrationException::class.java)
     }
 
     @Test
@@ -32,7 +31,8 @@ class LoadBalancerTest {
 
         val expectedProvidersIds = setOf(provider1.getId(), provider2.getId())
         val providersIds: MutableSet<String> = HashSet()
-        await().atMost(expectedProvidersIds.size.toLong(), SECONDS).pollInterval(10, MILLISECONDS).untilAsserted {
+
+        defaultAwait(atMost = Duration.ofSeconds(expectedProvidersIds.size.toLong())) {
             providersIds.add(loadBalancer.get())
 
             assertThat(providersIds).isEqualTo(expectedProvidersIds)
@@ -43,7 +43,7 @@ class LoadBalancerTest {
     fun `loadBalancer properly handles when there are no registered providers`() {
         val loadBalancer = createRandomizedLoadBalancer()
 
-        assertThrows<NoAvailableProvidersException> { loadBalancer.get() }
+        assertThatThrownBy { loadBalancer.get() }.isInstanceOf(NoAvailableProvidersException::class.java)
     }
 
     private fun createRandomizedLoadBalancer(): LoadBalancer {

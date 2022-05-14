@@ -1,7 +1,6 @@
 package com.rw.loadbalancer
 
-import com.rw.loadbalancer.registry.RegistrationCallback
-import com.rw.loadbalancer.registry.UnregistrationCallback
-import com.rw.loadbalancer.strategy.LoadBalancingStrategy
+import com.rw.loadbalancer.registry.ProviderRegistrationSubscriber
+import com.rw.loadbalancer.strategy.SelectionStrategy
 
-interface RegistryAwareStrategy : RegistrationCallback, UnregistrationCallback, LoadBalancingStrategy
+interface RegistryAwareStrategy : ProviderRegistrationSubscriber, SelectionStrategy
