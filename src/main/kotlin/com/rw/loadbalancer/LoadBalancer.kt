@@ -2,18 +2,20 @@ package com.rw.loadbalancer
 
 import com.rw.loadbalancer.provider.Provider
 import com.rw.loadbalancer.registry.Registry
-import com.rw.loadbalancer.strategy.random.RandomizedLoadBalancingStrategy
 
-
-class LoadBalancer {
-    private val loadBalancingStrategy: RandomizedLoadBalancingStrategy = RandomizedLoadBalancingStrategy()
-    private val registry: Registry = Registry(loadBalancingStrategy)
+class LoadBalancer internal constructor(private val registryAwareStrategy: RegistryAwareStrategy) {
+    private val registry: Registry = Registry(registryAwareStrategy)
 
     fun registerProvider(provider: Provider) {
         registry.registerProvider(provider)
     }
 
     fun get(): String {
-        return loadBalancingStrategy.next().getId()
+        try {
+            val provider = registryAwareStrategy.next()
+            return provider.getId()
+        } catch (e: IndexOutOfBoundsException) {
+            throw NoAvailableProvidersException("There are no available providers")
+        }
     }
 }

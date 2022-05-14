@@ -3,15 +3,15 @@ package com.rw.loadbalancer.strategy.random
 import com.rw.loadbalancer.provider.Provider
 
 class RandomizedMap<T : Provider> {
-    private val list: MutableList<T> = ArrayList()
-    private val idToIndex: MutableMap<String, Int?> = HashMap()
+    private val list: ArrayList<T> = ArrayList()
+    private val idToListIndex: HashMap<String, Int?> = HashMap()
 
     fun insert(value: T): Boolean {
         val id = value.getId()
-        return if (idToIndex.containsKey(id)) {
+        return if (idToListIndex.containsKey(id)) {
             false
         } else {
-            idToIndex[id] = list.size
+            idToListIndex[id] = list.size
             list.add(value)
             true
         }
@@ -19,15 +19,15 @@ class RandomizedMap<T : Provider> {
 
     fun remove(value: T): Boolean {
         val id = value.getId()
-        val index = idToIndex[id]
+        val index = idToListIndex[id]
         return if (index != null) {
             // fast delete in ArrayList: swap with last element then remove last element
             val lastValue = list[list.size - 1]
             list[index] = lastValue
-            idToIndex[lastValue.getId()] = index
+            idToListIndex[lastValue.getId()] = index
             list.removeAt(list.size - 1)
 
-            idToIndex.remove(id)
+            idToListIndex.remove(id)
             true
         } else false
     }
