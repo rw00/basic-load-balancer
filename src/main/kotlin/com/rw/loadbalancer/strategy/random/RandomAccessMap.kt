@@ -1,10 +1,30 @@
 package com.rw.loadbalancer.strategy.random
 
-import com.rw.loadbalancer.provider.Provider
+import com.rw.loadbalancer.provider.Identifiable
 
-class RandomizedMap<T : Provider> {
+/**
+ * A whole new data structure just to select a random element?!
+ *
+ * Well, yes, maybe it's worth it? Should benchmark. \
+ * Look-up must be extremely fast; hence, the Map of Providers by ID.
+ * But, Map doesn't support random access; hence, this data structure
+ *
+ * I could have easily written it like:
+ * ```
+ * val providers: Array<Provider> = providersById.values.toTypedArray() // copy
+ * val randomIndex: Int = (Math.random() * providersById.size).toInt()
+ * val randomProvider: Provider = providers[randomIndex]
+ * ```
+ */
+class RandomAccessMap<T : Identifiable> {
     private val list: ArrayList<T> = ArrayList()
     private val idToListIndex: HashMap<String, Int?> = HashMap()
+
+    val random: T?
+        get() {
+            val index = (Math.random() * list.size).toInt()
+            return list.getOrNull(index)
+        }
 
     fun insert(value: T): Boolean {
         val id = value.getId()
@@ -31,10 +51,4 @@ class RandomizedMap<T : Provider> {
             true
         } else false
     }
-
-    val random: T
-        get() {
-            val index = (Math.random() * list.size).toInt()
-            return list[index]
-        }
 }

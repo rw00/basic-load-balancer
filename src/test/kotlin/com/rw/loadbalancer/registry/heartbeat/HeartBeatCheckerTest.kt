@@ -1,9 +1,9 @@
 package com.rw.loadbalancer.registry.heartbeat
 
 import com.rw.loadbalancer.defaultAwait
+import com.rw.loadbalancer.internal.TestProvider
 import com.rw.loadbalancer.provider.ProviderDelegate
-import com.rw.loadbalancer.provider.TestUuidProvider
-import com.rw.loadbalancer.registry.ProviderRegistrationSubscriber
+import com.rw.loadbalancer.registry.RegistrationUpdatesSubscriber
 import com.rw.loadbalancer.registry.Registry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -13,32 +13,39 @@ import java.util.concurrent.atomic.AtomicBoolean
 class HeartBeatCheckerTest {
     @Test
     fun `checker should deactivate provider if one heart beat is missed`() {
+        // given
         val heartBeatChecker = HeartBeatChecker(500)
 
-        val defaultProvider = TestUuidProvider()
+        val testProviderId = "test-provider"
+        val testProvider = TestProvider(testProviderId)
 
         val addedCalled = AtomicBoolean(false)
         val removedCalled = AtomicBoolean(false)
-        val subscriber = object : ProviderRegistrationSubscriber {
-            override fun added(provider: ProviderDelegate) {
-                assertThat(provider.getId()).isEqualTo(defaultProvider.getId())
+        val testSubscriber = object : RegistrationUpdatesSubscriber {
+            override fun added(providerDelegate: ProviderDelegate<*>) {
+                assertThat(providerDelegate.getId()).isEqualTo(testProviderId)
                 addedCalled.set(true)
             }
 
-            override fun removed(provider: ProviderDelegate) {
-                assertThat(provider.getId()).isEqualTo(defaultProvider.getId())
+            override fun removed(providerDelegate: ProviderDelegate<*>) {
+                assertThat(providerDelegate.getId()).isEqualTo(testProviderId)
+                assertThat(providerDelegate.isActive()).isFalse
                 removedCalled.set(true)
             }
         }
 
-        val registry = Registry(heartBeatChecker, subscriber)
-        registry.registerProvider(defaultProvider)
+        val registry = Registry(heartBeatChecker, testSubscriber)
+        registry.registerProvider(testProvider)
         assertThat(addedCalled).isTrue
+
         try {
             heartBeatChecker.start(registry)
-            defaultProvider.overrideHealth(false)
+
+            // when
+            testProvider.overrideHealth(false)
 
             defaultAwait(pollInterval = Duration.ofMillis(250)) {
+                // then
                 assertThat(removedCalled).isTrue
             }
         } finally {

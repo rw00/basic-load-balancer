@@ -5,30 +5,35 @@ import com.rw.loadbalancer.provider.ProviderDelegate
 import com.rw.loadbalancer.provider.ProviderInfo
 import com.rw.loadbalancer.registry.heartbeat.HeartBeatChecker
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 const val MAX_ALLOWED_PROVIDERS: Int = 10
 
+/**
+ * This is primarily a Map of the Providers by their ID.
+ *
+ * The Registry notifies the Subscriber about currently active Providers.
+ */
 class Registry(
     private val heartBeatChecker: HeartBeatChecker,
-    private val providerRegistrationSubscriber: ProviderRegistrationSubscriber
+    private val registrationUpdatesSubscriber: RegistrationUpdatesSubscriber
 ) {
-    private val providersMap: ConcurrentHashMap<String, ProviderDelegate> = ConcurrentHashMap()
-
-    val providersDelegates: Collection<ProviderDelegate>
-        get() {
-            return providersMap.values
-        }
+    private val providersDelegatesById: ConcurrentHashMap<String, ProviderDelegate<*>> = ConcurrentHashMap()
+    private val activeProvidersCounter: AtomicInteger = AtomicInteger(0)
 
     init {
         heartBeatChecker.start(this)
     }
 
-    fun registerProvider(provider: Provider): String {
+    fun registerProvider(provider: Provider<*>): String {
         val id = provider.getId()
-        if (providersMap.size < MAX_ALLOWED_PROVIDERS) {
+        if (providersDelegatesById.size < MAX_ALLOWED_PROVIDERS) {
             val providerDelegate = ProviderDelegate(provider)
-            providersMap[id] = providerDelegate
-            providerRegistrationSubscriber.added(providerDelegate)
+            providersDelegatesById[id] = providerDelegate
+            registrationUpdatesSubscriber.added(providerDelegate)
+            if (providerDelegate.isActive()) {
+                activeProvidersCounter.incrementAndGet()
+            }
             return id
         } else {
             throw RegistrationException(
@@ -38,22 +43,35 @@ class Registry(
     }
 
     fun reactivateProvider(id: String) {
-        val providerDelegate: ProviderDelegate? = providersMap[id]
+        val providerDelegate: ProviderDelegate<*>? = providersDelegatesById[id]
         if (providerDelegate?.activate() == true) {
-            providerRegistrationSubscriber.added(providerDelegate)
+            registrationUpdatesSubscriber.added(providerDelegate)
+            activeProvidersCounter.incrementAndGet()
         }
     }
 
     fun deactivateProvider(id: String) {
-        val providerDelegate: ProviderDelegate? = providersMap[id]
+        val providerDelegate: ProviderDelegate<*>? = providersDelegatesById[id]
         if (providerDelegate?.deactivate() == true) {
-            providerRegistrationSubscriber.removed(providerDelegate)
+            registrationUpdatesSubscriber.removed(providerDelegate)
+            activeProvidersCounter.decrementAndGet()
         }
     }
 
     fun listProviders(): List<ProviderInfo> {
         return heartBeatChecker.listProviders()
     }
+
+    val providersDelegatesCopy: Array<ProviderDelegate<*>>
+        get() {
+            // copy to avoid concurrent iteration/modification
+            return providersDelegatesById.values.toTypedArray()
+        }
+
+    val activeProvidersCount: Int
+        get() {
+            return activeProvidersCounter.get()
+        }
 
     fun shutdown() {
         heartBeatChecker.stop()

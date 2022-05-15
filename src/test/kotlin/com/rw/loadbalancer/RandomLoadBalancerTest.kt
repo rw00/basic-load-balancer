@@ -9,19 +9,24 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.time.Duration
 
-class LoadBalancerTest {
+class RandomLoadBalancerTest {
     @Test
-    fun `loadBalancer can register a max of 10 providers`() {
+    fun `loadBalancer should register no more than 10 providers`() {
+        // given
         val loadBalancer = createRandomizedLoadBalancer()
+
+        // when
         repeat(MAX_ALLOWED_PROVIDERS) {
             loadBalancer.registerProvider(UuidProvider())
         }
         assertThatThrownBy { loadBalancer.registerProvider(UuidProvider()) }
+            // then
             .isInstanceOf(RegistrationException::class.java)
     }
 
     @Test
-    fun `loadBalancer randomly selects a provider and returns result`() {
+    fun `loadBalancer should randomly select provider and return result from it asynchronously`() {
+        // given
         val loadBalancer = createRandomizedLoadBalancer()
 
         val provider1 = UuidProvider()
@@ -33,20 +38,31 @@ class LoadBalancerTest {
         val providersIds: MutableSet<String> = HashSet()
 
         defaultAwait(atMost = Duration.ofSeconds(expectedProvidersIds.size.toLong())) {
-            providersIds.add(loadBalancer.get())
+            // when
+            val result = loadBalancer.get().get()
+            providersIds.add(result)
 
+            // then
             assertThat(providersIds).isEqualTo(expectedProvidersIds)
         }
     }
 
     @Test
-    fun `loadBalancer properly handles when there are no registered providers`() {
+    fun `loadBalancer should handle case when there are no registered providers`() {
+        // given
         val loadBalancer = createRandomizedLoadBalancer()
 
-        assertThatThrownBy { loadBalancer.get() }.isInstanceOf(NoAvailableProvidersException::class.java)
+        // when
+        val completableFuture = loadBalancer.get()
+
+        // then
+        completableFuture.whenComplete { _, throwable ->
+            assertThat(throwable).isInstanceOf(NoAvailableProvidersException::class.java)
+        }
+        assertThat(completableFuture).isCompletedExceptionally
     }
 
-    private fun createRandomizedLoadBalancer(): LoadBalancer {
-        return LoadBalancer.Builder().registryAwareStrategy(RandomizedStrategy()).build()
+    private fun createRandomizedLoadBalancer(): LoadBalancer<String> {
+        return LoadBalancer.Builder<String>().registryAwareSelectionStrategy(RandomizedStrategy()).build()
     }
 }

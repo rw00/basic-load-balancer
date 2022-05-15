@@ -1,25 +1,33 @@
 package com.rw.loadbalancer.strategy.roundrobin
 
-import com.rw.loadbalancer.RegistryAwareStrategy
+import com.rw.loadbalancer.RegistryAwareSelectionStrategy
 import com.rw.loadbalancer.provider.ProviderDelegate
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
-class RoundRobinStrategy : RegistryAwareStrategy {
-    private val list: MutableList<ProviderDelegate> = CopyOnWriteArrayList()
-    private val index: AtomicInteger = AtomicInteger(-1)
+class RoundRobinStrategy : RegistryAwareSelectionStrategy {
+    private val readWriteLock = ReentrantReadWriteLock()
+    private val list: ArrayList<ProviderDelegate<*>> = ArrayList()
+    private var index: Int = 0
 
-    override fun next(): ProviderDelegate {
-        index.compareAndSet(list.size - 1, -1)
-        return list[index.incrementAndGet()]
+    override fun <T> next(): ProviderDelegate<T>? {
+        readWriteLock.read {
+            val result = list.getOrNull(index % list.size)
+            index = (index + 1) % list.size
+            return result as ProviderDelegate<T>?
+        }
     }
 
-    override fun added(provider: ProviderDelegate) {
-        list.add(provider)
+    override fun added(providerDelegate: ProviderDelegate<*>) {
+        readWriteLock.write {
+            list.add(providerDelegate)
+        }
     }
 
-    override fun removed(provider: ProviderDelegate) {
-        list.remove(provider)
-        index.set(-1)
+    override fun removed(providerDelegate: ProviderDelegate<*>) {
+        readWriteLock.write {
+            list.remove(providerDelegate)
+        }
     }
 }

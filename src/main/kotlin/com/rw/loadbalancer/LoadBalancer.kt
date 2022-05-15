@@ -5,30 +5,38 @@ import com.rw.loadbalancer.provider.ProviderInfo
 import com.rw.loadbalancer.registry.Registry
 import com.rw.loadbalancer.registry.heartbeat.HeartBeatChecker
 import com.rw.loadbalancer.strategy.roundrobin.RoundRobinStrategy
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
-private const val DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISECONDS: Long = 2 * 100
+const val DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISEC: Long = 2 * 1000
+const val DEFAULT_MAX_PROVIDER_CONCURRENCY: Int = 5
 
-class LoadBalancer private constructor(
-    private val registryAwareStrategy: RegistryAwareStrategy,
+class LoadBalancer<T> private constructor(
+    private val registryAwareSelectionStrategy: RegistryAwareSelectionStrategy,
+    private val maxProviderConcurrency: Int,
     heartBeatChecker: HeartBeatChecker
 ) {
-    private val registry: Registry = Registry(heartBeatChecker, registryAwareStrategy)
+    private val registry: Registry = Registry(heartBeatChecker, registryAwareSelectionStrategy)
+    private val currentRequestsCounter: AtomicInteger = AtomicInteger(0)
+    private val executorService: ExecutorService = Executors.newCachedThreadPool()
 
-    fun registerProvider(provider: Provider): String {
-        return registry.registerProvider(provider)
-    }
-
-    fun get(): String {
-        try {
-            val provider: Provider = registryAwareStrategy.next()
-            return provider.get()
-        } catch (e: IndexOutOfBoundsException) {
-            throw NoAvailableProvidersException("There are no available providers")
+    fun get(): CompletableFuture<T> {
+        return try {
+            val activeProvidersCount: Int = registry.activeProvidersCount
+            if (maxProviderConcurrency * activeProvidersCount < currentRequestsCounter.incrementAndGet()) {
+                return doCompleteExceptionallyNoProviders()
+            }
+            doGet()
+        } catch (e: Exception) {
+            // log
+            CompletableFuture.failedFuture(IllegalStateException("Unhandled exception!", e))
         }
     }
 
-    fun listRegisteredProviders(): List<ProviderInfo> {
-        return registry.listProviders()
+    fun registerProvider(provider: Provider<T>): String {
+        return registry.registerProvider(provider)
     }
 
     fun reactivateProvider(id: String) {
@@ -39,23 +47,66 @@ class LoadBalancer private constructor(
         registry.deactivateProvider(id)
     }
 
+    val registeredProviders: List<ProviderInfo>
+        get() {
+            return registry.listProviders()
+        }
+
     fun shutdown() {
+        executorService.shutdown()
         registry.shutdown()
     }
 
-    data class Builder(
-        var registryAwareStrategy: RegistryAwareStrategy = RoundRobinStrategy(),
-        var heartBeatCheckPeriodInMilliseconds: Long = DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISECONDS
+    private fun doGet(): CompletableFuture<T> {
+        val provider: Provider<T>? = registryAwareSelectionStrategy.next()
+        return if (provider == null) {
+            doCompleteExceptionallyNoProviders()
+        } else {
+            CompletableFuture.supplyAsync({ doCallProvider(provider) }, executorService)
+        }
+    }
+
+    private fun doCallProvider(provider: Provider<T>): T {
+        return try {
+            provider.get()
+        } finally {
+            decrementCurrentRequestsCount()
+        }
+    }
+
+    private fun doCompleteExceptionallyNoProviders(): CompletableFuture<T> {
+        decrementCurrentRequestsCount()
+        return CompletableFuture.failedFuture(NoAvailableProvidersException("There are no available providers"))
+    }
+
+    private fun decrementCurrentRequestsCount() {
+        currentRequestsCounter.updateAndGet { v -> if (v > 0) v - 1 else v }
+    }
+
+    data class Builder<T>(
+        var registryAwareSelectionStrategy: RegistryAwareSelectionStrategy = RoundRobinStrategy(),
+        var heartBeatCheckPeriodInMilliSec: Long = DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISEC,
+        var maxProviderConcurrency: Int = DEFAULT_MAX_PROVIDER_CONCURRENCY
     ) {
-        fun registryAwareStrategy(registryAwareStrategy: RegistryAwareStrategy) =
-            apply { this.registryAwareStrategy = registryAwareStrategy }
+        fun registryAwareSelectionStrategy(registryAwareSelectionStrategy: RegistryAwareSelectionStrategy) =
+            apply { this.registryAwareSelectionStrategy = registryAwareSelectionStrategy }
 
-        fun heartBeatCheckPeriodInMilliseconds(heartBeatCheckPeriodInMilliseconds: Long) =
-            apply { this.heartBeatCheckPeriodInMilliseconds = heartBeatCheckPeriodInMilliseconds }
+        fun heartBeatCheckPeriodInMilliSec(heartBeatCheckPeriodInMilliSec: Long) =
+            apply { this.heartBeatCheckPeriodInMilliSec = heartBeatCheckPeriodInMilliSec }
 
-        fun build(): LoadBalancer {
-            val heartBeatChecker = HeartBeatChecker(heartBeatCheckPeriodInMilliseconds)
-            return LoadBalancer(registryAwareStrategy, heartBeatChecker)
+        fun maxProviderConcurrency(maxProviderConcurrency: Int) =
+            apply { this.maxProviderConcurrency = maxProviderConcurrency }
+
+        fun reset() =
+            apply {
+                this.registryAwareSelectionStrategy = RoundRobinStrategy()
+                this.heartBeatCheckPeriodInMilliSec = DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISEC
+                this.maxProviderConcurrency = DEFAULT_MAX_PROVIDER_CONCURRENCY
+            }
+
+        fun build(): LoadBalancer<T> {
+            val heartBeatChecker = HeartBeatChecker(heartBeatCheckPeriodInMilliSec)
+            return LoadBalancer(registryAwareSelectionStrategy, maxProviderConcurrency, heartBeatChecker)
         }
     }
 }

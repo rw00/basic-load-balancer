@@ -9,38 +9,50 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
+/**
+ * This Checker periodically pings the Providers in the Registry.
+ *
+ * If a Provider does not respond, the Registry will be requested to remove it from the active pool.
+ */
 class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
     private lateinit var registry: Registry
-    private val providersHealthById = ConcurrentHashMap<String, HealthState>()
+    private val providersHealthStateById = ConcurrentHashMap<String, HealthState>()
 
-    private val executorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
+    private val scheduledExecutorService: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
 
     fun start(registry: Registry) {
         this.registry = registry
-
-        val providersCopy: Array<Provider> = registry.providersDelegates.toTypedArray()
-        providersCopy.forEach { provider ->
-            providersHealthById[provider.getId()] = initialHealthState(provider)
-        }
-        executorService.scheduleAtFixedRate(
-            ::periodicHeartBeatCheck, 0, checkPeriodInMilliseconds, TimeUnit.MILLISECONDS
+        initialCheck()
+        scheduledExecutorService.scheduleAtFixedRate(
+            ::periodicHeartBeatCheck, checkPeriodInMilliseconds, checkPeriodInMilliseconds, TimeUnit.MILLISECONDS
         )
     }
 
     fun stop() {
-        executorService.shutdown()
+        scheduledExecutorService.shutdown()
     }
 
     fun listProviders(): List<ProviderInfo> {
-        val providersCopy: Array<ProviderDelegate> = registry.providersDelegates.toTypedArray()
-        return providersCopy.map { provider ->
+        val providersDelegates: Array<ProviderDelegate<*>> = registry.providersDelegatesCopy
+        return providersDelegates.map { provider ->
             val id = provider.getId()
-            ProviderInfo(id, provider.isActive(), providersHealthById.getOrDefault(id, initialHealthState(provider)))
+            ProviderInfo(
+                id,
+                provider.isActive(),
+                providersHealthStateById.getOrDefault(id, initialHealthState(provider))
+            )
         }
     }
 
-    private fun initialHealthState(provider: Provider): HealthState {
-        return if (checkHeartBeat(provider)) {
+    private fun initialCheck() {
+        val providers: Array<ProviderDelegate<*>> = registry.providersDelegatesCopy
+        providers.forEach { provider ->
+            providersHealthStateById[provider.getId()] = initialHealthState(provider)
+        }
+    }
+
+    private fun initialHealthState(provider: Provider<*>): HealthState {
+        return if (heartBeatCheck(provider)) {
             HealthState.ALIVE
         } else {
             HealthState.DEAD
@@ -48,21 +60,20 @@ class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
     }
 
     private fun periodicHeartBeatCheck() {
-        // copy to avoid concurrent iteration/modification
-        val providersCopy: Array<Provider> = registry.providersDelegates.toTypedArray()
+        val providers: Array<ProviderDelegate<*>> = registry.providersDelegatesCopy
 
-        providersCopy.forEach { provider ->
+        providers.forEach { provider ->
             val id = provider.getId()
-            if (!checkHeartBeat(provider)) {
+            if (!heartBeatCheck(provider)) {
                 declareDead(provider)
             } else {
-                val lastRecordedHealthState = providersHealthById.getOrDefault(id, HealthState.ALIVE)
+                val lastRecordedHealthState = providersHealthStateById.getOrDefault(id, HealthState.ALIVE)
                 when (lastRecordedHealthState) {
                     HealthState.DEAD -> {
-                        providersHealthById[id] = HealthState.PENDING_RESURRECTION
+                        providersHealthStateById[id] = HealthState.PENDING_RESURRECTION
                     }
                     HealthState.PENDING_RESURRECTION -> {
-                        resurrect(provider)
+                        declareAlive(provider)
                     }
                     else -> {
                         // do nothing
@@ -72,18 +83,21 @@ class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
         }
     }
 
-    private fun declareDead(provider: Provider) {
-        registry.deactivateProvider(provider.getId())
-        providersHealthById[provider.getId()] = HealthState.DEAD
+    private fun declareDead(provider: Provider<*>) {
+        val id = provider.getId()
+        registry.deactivateProvider(id)
+        providersHealthStateById[id] = HealthState.DEAD
     }
 
-    private fun resurrect(provider: Provider) {
-        registry.reactivateProvider(provider.getId())
-        providersHealthById[provider.getId()] = HealthState.ALIVE
+    private fun declareAlive(provider: Provider<*>) {
+        val id = provider.getId()
+        registry.reactivateProvider(id)
+        providersHealthStateById[id] = HealthState.ALIVE
     }
 
-    private fun checkHeartBeat(provider: Provider): Boolean {
+    private fun heartBeatCheck(provider: Provider<*>): Boolean {
         return try {
+            // log pinging...
             provider.check()
         } catch (ignore: Exception) { // supposedly could fail
             false

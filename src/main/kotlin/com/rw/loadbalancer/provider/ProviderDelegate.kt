@@ -1,20 +1,19 @@
 package com.rw.loadbalancer.provider
 
-import com.rw.loadbalancer.internal.DebugUtil
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ProviderDelegate(private val instance: Provider) : Provider {
+/**
+ * A ProviderDelegate is basically a Provider that can be activated/deactivated.
+ */
+class ProviderDelegate<T>(private val instance: Provider<T>) : Provider<T> {
     private val active: AtomicBoolean = AtomicBoolean(true) // TO DO : starts inactive?
 
     override fun getId(): String {
         return instance.getId()
     }
 
-    override fun get(): String {
-        if (DebugUtil.DEBUG_ENABLED) {
-            Thread.sleep(DebugUtil.DEBUG_WAIT_TIME_MILLIS)
-        }
-        return instance.getId()
+    override fun get(): T {
+        return instance.get()
     }
 
     override fun check(): Boolean {
