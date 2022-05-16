@@ -1,12 +1,12 @@
 package com.rw.loadbalancer.provider
 
-interface Provider<T> : Identifiable {
+interface Provider : Identifiable {
     /**
      * A simplified operation on the node.
      *
      * Currently, it only returns the ID
      */
-    fun get(): T
+    fun get(): String
 
     /**
      * Supposedly a remote call. Analogous to pinging.

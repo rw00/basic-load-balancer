@@ -4,7 +4,7 @@ import com.rw.loadbalancer.provider.Provider
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
-open class TestProvider(private val id: String = UUID.randomUUID().toString()) : Provider<String> {
+open class TestProvider(private val id: String = UUID.randomUUID().toString()) : Provider {
     private val healthIndicator: AtomicBoolean = AtomicBoolean(true)
 
     override fun getId(): String {

@@ -5,14 +5,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * A ProviderDelegate is basically a Provider that can be activated/deactivated.
  */
-class ProviderDelegate<T>(private val instance: Provider<T>) : Provider<T> {
+class ProviderDelegate(private val instance: Provider) : Provider {
     private val active: AtomicBoolean = AtomicBoolean(true) // TO DO : starts inactive?
 
     override fun getId(): String {
         return instance.getId()
     }
 
-    override fun get(): T {
+    override fun get(): String {
         return instance.get()
     }
 

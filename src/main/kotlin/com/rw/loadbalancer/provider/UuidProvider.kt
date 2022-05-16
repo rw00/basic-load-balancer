@@ -2,7 +2,7 @@ package com.rw.loadbalancer.provider
 
 import java.util.UUID
 
-class UuidProvider : Provider<String> {
+class UuidProvider : Provider {
     private val uuid: String = UUID.randomUUID().toString()
 
     override fun getId(): String = uuid

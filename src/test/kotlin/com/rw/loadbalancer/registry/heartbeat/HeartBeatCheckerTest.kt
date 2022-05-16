@@ -22,12 +22,12 @@ class HeartBeatCheckerTest {
         val addedCalled = AtomicBoolean(false)
         val removedCalled = AtomicBoolean(false)
         val testSubscriber = object : RegistrationUpdatesSubscriber {
-            override fun added(providerDelegate: ProviderDelegate<*>) {
+            override fun added(providerDelegate: ProviderDelegate) {
                 assertThat(providerDelegate.getId()).isEqualTo(testProviderId)
                 addedCalled.set(true)
             }
 
-            override fun removed(providerDelegate: ProviderDelegate<*>) {
+            override fun removed(providerDelegate: ProviderDelegate) {
                 assertThat(providerDelegate.getId()).isEqualTo(testProviderId)
                 assertThat(providerDelegate.isActive()).isFalse
                 removedCalled.set(true)

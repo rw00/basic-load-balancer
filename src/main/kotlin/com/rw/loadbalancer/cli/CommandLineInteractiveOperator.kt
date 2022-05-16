@@ -32,8 +32,8 @@ object CommandLineInteractiveOperatorMain {
 
 class CommandLineInteractiveOperator {
     private lateinit var commandLineInputState: CommandLineInputState
-    private val loadBalancerBuilder = LoadBalancer.Builder<String>()
-    private var loadBalancer: LoadBalancer<String>? = null
+    private val loadBalancerBuilder = LoadBalancer.Builder()
+    private var loadBalancer: LoadBalancer? = null
     private val providersMap: MutableMap<String, TestProvider> = HashMap()
 
     fun run() {

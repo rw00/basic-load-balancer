@@ -8,5 +8,5 @@ interface SelectionStrategy {
      *
      * In theory, this Provider might be down and not functioning properly but still not discovered to be ill.
      */
-    fun <T> next(): ProviderDelegate<T>?
+    fun next(): ProviderDelegate?
 }

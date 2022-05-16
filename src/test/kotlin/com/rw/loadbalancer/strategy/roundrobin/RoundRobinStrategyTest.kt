@@ -23,10 +23,10 @@ class RoundRobinStrategyTest {
             providersIds.forEach { providerId ->
 
                 // then
-                val next: ProviderDelegate<String>? = roundRobinStrategy.next()
-                assertThat(next).isNotNull
-                next?.let { providerDelegate ->
-                    assertThat(providerDelegate).extracting(ProviderDelegate<*>::getId).isEqualTo(providerId)
+                val nextProvider: ProviderDelegate? = roundRobinStrategy.next()
+                assertThat(nextProvider).isNotNull
+                nextProvider?.let { providerDelegate ->
+                    assertThat(providerDelegate).extracting(ProviderDelegate::getId).isEqualTo(providerId)
                 }
             }
         }

@@ -62,7 +62,7 @@ class RandomLoadBalancerTest {
         assertThat(completableFuture).isCompletedExceptionally
     }
 
-    private fun createRandomizedLoadBalancer(): LoadBalancer<String> {
-        return LoadBalancer.Builder<String>().registryAwareSelectionStrategy(RandomizedStrategy()).build()
+    private fun createRandomizedLoadBalancer(): LoadBalancer {
+        return LoadBalancer.Builder().registryAwareSelectionStrategy(RandomizedStrategy()).build()
     }
 }

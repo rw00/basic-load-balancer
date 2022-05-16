@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
 const val DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISEC: Long = 2 * 1000
 const val DEFAULT_MAX_PROVIDER_CONCURRENCY: Int = 5
 
-class LoadBalancer<T> private constructor(
+class LoadBalancer private constructor(
     private val registryAwareSelectionStrategy: RegistryAwareSelectionStrategy,
     private val maxProviderConcurrency: Int,
     heartBeatChecker: HeartBeatChecker
@@ -22,7 +22,7 @@ class LoadBalancer<T> private constructor(
     private val currentRequestsCounter: AtomicInteger = AtomicInteger(0)
     private val executorService: ExecutorService = Executors.newCachedThreadPool()
 
-    fun get(): CompletableFuture<T> {
+    fun get(): CompletableFuture<String> {
         return try {
             val activeProvidersCount: Int = registry.activeProvidersCount
             if (maxProviderConcurrency * activeProvidersCount < currentRequestsCounter.incrementAndGet()) {
@@ -35,7 +35,7 @@ class LoadBalancer<T> private constructor(
         }
     }
 
-    fun registerProvider(provider: Provider<T>): String {
+    fun registerProvider(provider: Provider): String {
         return registry.registerProvider(provider)
     }
 
@@ -57,8 +57,8 @@ class LoadBalancer<T> private constructor(
         registry.shutdown()
     }
 
-    private fun doGet(): CompletableFuture<T> {
-        val provider: Provider<T>? = registryAwareSelectionStrategy.next()
+    private fun doGet(): CompletableFuture<String> {
+        val provider: Provider? = registryAwareSelectionStrategy.next()
         return if (provider == null) {
             doCompleteExceptionallyNoProviders()
         } else {
@@ -66,7 +66,7 @@ class LoadBalancer<T> private constructor(
         }
     }
 
-    private fun doCallProvider(provider: Provider<T>): T {
+    private fun doCallProvider(provider: Provider): String {
         return try {
             provider.get()
         } finally {
@@ -74,7 +74,7 @@ class LoadBalancer<T> private constructor(
         }
     }
 
-    private fun doCompleteExceptionallyNoProviders(): CompletableFuture<T> {
+    private fun doCompleteExceptionallyNoProviders(): CompletableFuture<String> {
         decrementCurrentRequestsCount()
         return CompletableFuture.failedFuture(NoAvailableProvidersException("There are no available providers"))
     }
@@ -83,7 +83,7 @@ class LoadBalancer<T> private constructor(
         currentRequestsCounter.updateAndGet { v -> if (v > 0) v - 1 else v }
     }
 
-    data class Builder<T>(
+    data class Builder(
         var registryAwareSelectionStrategy: RegistryAwareSelectionStrategy = RoundRobinStrategy(),
         var heartBeatCheckPeriodInMilliSec: Long = DEFAULT_HEART_BEAT_CHECK_PERIOD_MILLISEC,
         var maxProviderConcurrency: Int = DEFAULT_MAX_PROVIDER_CONCURRENCY
@@ -104,7 +104,7 @@ class LoadBalancer<T> private constructor(
                 this.maxProviderConcurrency = DEFAULT_MAX_PROVIDER_CONCURRENCY
             }
 
-        fun build(): LoadBalancer<T> {
+        fun build(): LoadBalancer {
             val heartBeatChecker = HeartBeatChecker(heartBeatCheckPeriodInMilliSec)
             return LoadBalancer(registryAwareSelectionStrategy, maxProviderConcurrency, heartBeatChecker)
         }

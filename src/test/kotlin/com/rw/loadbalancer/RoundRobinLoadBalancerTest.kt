@@ -63,7 +63,7 @@ class RoundRobinLoadBalancerTest {
         }
     }
 
-    private fun checkRoundRobinCycle(expectedProvidersIds: MutableList<String>, loadBalancer: LoadBalancer<String>) {
+    private fun checkRoundRobinCycle(expectedProvidersIds: MutableList<String>, loadBalancer: LoadBalancer) {
         // then
         expectedProvidersIds.forEach { providerId ->
             val completableFuture = loadBalancer.get()
@@ -73,11 +73,11 @@ class RoundRobinLoadBalancerTest {
         }
     }
 
-    private fun createRoundRobinLoadBalancer(): LoadBalancer<String> {
+    private fun createRoundRobinLoadBalancer(): LoadBalancer {
         return createRoundRobinLoadBalancerBuilder().build()
     }
 
-    private fun createRoundRobinLoadBalancerBuilder(): LoadBalancer.Builder<String> {
-        return LoadBalancer.Builder<String>().registryAwareSelectionStrategy(RoundRobinStrategy())
+    private fun createRoundRobinLoadBalancerBuilder(): LoadBalancer.Builder {
+        return LoadBalancer.Builder().registryAwareSelectionStrategy(RoundRobinStrategy())
     }
 }

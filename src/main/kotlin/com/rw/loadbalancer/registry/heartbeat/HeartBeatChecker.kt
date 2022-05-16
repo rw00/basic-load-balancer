@@ -33,7 +33,7 @@ class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
     }
 
     fun listProviders(): List<ProviderInfo> {
-        val providersDelegates: Array<ProviderDelegate<*>> = registry.providersDelegatesCopy
+        val providersDelegates: Array<ProviderDelegate> = registry.providersDelegatesCopy
         return providersDelegates.map { provider ->
             val id = provider.getId()
             ProviderInfo(
@@ -45,13 +45,13 @@ class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
     }
 
     private fun initialCheck() {
-        val providers: Array<ProviderDelegate<*>> = registry.providersDelegatesCopy
+        val providers: Array<ProviderDelegate> = registry.providersDelegatesCopy
         providers.forEach { provider ->
             providersHealthStateById[provider.getId()] = initialHealthState(provider)
         }
     }
 
-    private fun initialHealthState(provider: Provider<*>): HealthState {
+    private fun initialHealthState(provider: Provider): HealthState {
         return if (heartBeatCheck(provider)) {
             HealthState.ALIVE
         } else {
@@ -60,7 +60,7 @@ class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
     }
 
     private fun periodicHeartBeatCheck() {
-        val providers: Array<ProviderDelegate<*>> = registry.providersDelegatesCopy
+        val providers: Array<ProviderDelegate> = registry.providersDelegatesCopy
 
         providers.forEach { provider ->
             val id = provider.getId()
@@ -83,19 +83,19 @@ class HeartBeatChecker(private val checkPeriodInMilliseconds: Long) {
         }
     }
 
-    private fun declareDead(provider: Provider<*>) {
+    private fun declareDead(provider: Provider) {
         val id = provider.getId()
         registry.deactivateProvider(id)
         providersHealthStateById[id] = HealthState.DEAD
     }
 
-    private fun declareAlive(provider: Provider<*>) {
+    private fun declareAlive(provider: Provider) {
         val id = provider.getId()
         registry.reactivateProvider(id)
         providersHealthStateById[id] = HealthState.ALIVE
     }
 
-    private fun heartBeatCheck(provider: Provider<*>): Boolean {
+    private fun heartBeatCheck(provider: Provider): Boolean {
         return try {
             // log pinging...
             provider.check()
